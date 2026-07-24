@@ -4,5 +4,10 @@ __pycache__/
 venv/
 .env
 state.db
+docs.db
 .ruff_cache/
 .pytest_cache/
+
+# frontend (Vite manages its own .gitignore under frontend/)
+frontend/node_modules/
+frontend/dist/

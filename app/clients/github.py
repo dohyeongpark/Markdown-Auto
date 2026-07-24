@@ -12,11 +12,14 @@ GITHUB_API_BASE = "https://api.github.com"
 class GitHubFile:
     path: str
     content: str
-    sha: str
 
 
 class GitHubClient:
-    """GitHub Contents API 래퍼. httpx.AsyncClient만 사용한다 (requests 금지)."""
+    """GitHub Contents API read-only 래퍼. httpx.AsyncClient만 사용한다 (requests 금지).
+
+    생성된 문서는 docs_store.py에 저장하고 GitHub에는 커밋하지 않으므로,
+    이 클라이언트는 소스 파일 조회 기능만 제공한다 (쓰기 메서드 없음).
+    """
 
     def __init__(self, token: str) -> None:
         self._token = token
@@ -39,7 +42,7 @@ class GitHubClient:
 
         data = response.json()
         content = base64.b64decode(data["content"]).decode("utf-8")
-        return GitHubFile(path=path, content=content, sha=data["sha"])
+        return GitHubFile(path=path, content=content)
 
     async def list_directory_files(self, owner: str, repo: str, directory: str, ref: str) -> dict[str, str]:
         """디렉토리 내 파일 경로 -> 내용 매핑을 반환한다 (하위 디렉토리는 재귀하지 않음)."""
@@ -61,27 +64,3 @@ class GitHubClient:
             if file is not None:
                 files[file.path] = file.content
         return files
-
-    async def create_or_update_file(
-        self,
-        *,
-        owner: str,
-        repo: str,
-        path: str,
-        content: str,
-        message: str,
-        branch: str,
-        sha: str | None,
-    ) -> None:
-        url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/contents/{path}"
-        body: dict[str, str] = {
-            "message": message,
-            "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
-            "branch": branch,
-        }
-        if sha is not None:
-            body["sha"] = sha
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.put(url, json=body, headers=self._headers())
-        response.raise_for_status()
