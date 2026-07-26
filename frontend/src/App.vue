@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { listDocs, getDoc } from './api'
-import DocList from './components/DocList.vue'
+import DocTree from './components/DocTree.vue'
 import DocViewer from './components/DocViewer.vue'
 import PromptSettingsModal from './components/PromptSettingsModal.vue'
 
@@ -82,7 +82,7 @@ watch(branch, () => {
 
     <main class="layout__body">
       <aside class="layout__sidebar">
-        <DocList :documents="documents" :active-directory="activeDirectory" @select="selectDirectory" />
+        <DocTree :documents="documents" :active-directory="activeDirectory" @select="selectDirectory" />
       </aside>
       <section class="layout__content">
         <DocViewer :document="activeDocument" />
@@ -96,7 +96,7 @@ watch(branch, () => {
 <style scoped>
 .layout__body {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 280px 1fr;
   gap: 1.5rem;
   align-items: start;
   margin-top: 1.5rem;
