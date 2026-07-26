@@ -1,13 +1,29 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import hmac
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
+from app.auth_store import issue_repo_key, verify_repo_key
+from app.config import get_settings
 from app.docs_store import get_document, list_documents
 from app.prompt_store import get_prompt_config, upsert_prompt_config
 from app.prompts import PRESETS, get_preset
 
 router = APIRouter(prefix="/api")
+
+
+def require_repo_key(owner: str, repo: str, x_repo_api_key: str | None = Header(default=None)) -> None:
+    if not x_repo_api_key or not verify_repo_key(f"{owner}/{repo}", x_repo_api_key):
+        raise HTTPException(status_code=401, detail="invalid or missing repo API key")
+
+
+def require_admin_key(x_admin_api_key: str | None = Header(default=None)) -> None:
+    settings = get_settings()
+    if not x_admin_api_key or not hmac.compare_digest(x_admin_api_key, settings.admin_api_key):
+        raise HTTPException(status_code=401, detail="invalid or missing admin API key")
+
 
 # 저장소 루트 디렉토리는 내부적으로 "."로 표현하지만, URL 경로 세그먼트로 그대로 쓰면
 # HTTP 클라이언트(브라우저 fetch, httpx 등)가 RFC 3986 dot-segment 정규화로
@@ -47,7 +63,27 @@ class PromptConfigUpdate(BaseModel):
     custom_instructions: str | None = None
 
 
-@router.get("/{owner}/{repo}/{branch}/docs", response_model=list[DocumentSummary])
+class RepoApiKeyResponse(BaseModel):
+    api_key: str
+
+
+@router.post(
+    "/{owner}/{repo}/api-key",
+    response_model=RepoApiKeyResponse,
+    dependencies=[Depends(require_admin_key)],
+)
+async def issue_repo_api_key(owner: str, repo: str) -> RepoApiKeyResponse:
+    """관리자 시크릿(ADMIN_API_KEY)으로만 호출 가능. 발급된 평문 키는 이 응답에서만 확인할 수 있고
+    저장소에는 해시만 남으므로, 분실 시 재호출로 재발급(기존 키는 즉시 무효화)해야 한다."""
+    api_key = issue_repo_key(repo=f"{owner}/{repo}")
+    return RepoApiKeyResponse(api_key=api_key)
+
+
+@router.get(
+    "/{owner}/{repo}/{branch}/docs",
+    response_model=list[DocumentSummary],
+    dependencies=[Depends(require_repo_key)],
+)
 async def list_repo_docs(owner: str, repo: str, branch: str) -> list[DocumentSummary]:
     documents = list_documents(repo=f"{owner}/{repo}", branch=branch)
     return [
@@ -56,7 +92,11 @@ async def list_repo_docs(owner: str, repo: str, branch: str) -> list[DocumentSum
     ]
 
 
-@router.get("/{owner}/{repo}/{branch}/docs/{directory:path}", response_model=DocumentDetail)
+@router.get(
+    "/{owner}/{repo}/{branch}/docs/{directory:path}",
+    response_model=DocumentDetail,
+    dependencies=[Depends(require_repo_key)],
+)
 async def get_repo_doc(owner: str, repo: str, branch: str, directory: str) -> DocumentDetail:
     document = get_document(repo=f"{owner}/{repo}", branch=branch, directory=_directory_from_url(directory))
     if document is None:
@@ -78,7 +118,11 @@ async def list_prompt_presets() -> list[PromptPresetSummary]:
     ]
 
 
-@router.get("/{owner}/{repo}/{branch}/prompt-config", response_model=PromptConfigResponse)
+@router.get(
+    "/{owner}/{repo}/{branch}/prompt-config",
+    response_model=PromptConfigResponse,
+    dependencies=[Depends(require_repo_key)],
+)
 async def get_repo_prompt_config(owner: str, repo: str, branch: str) -> PromptConfigResponse:
     config = get_prompt_config(repo=f"{owner}/{repo}", branch=branch)
     if config is None:
@@ -91,7 +135,11 @@ async def get_repo_prompt_config(owner: str, repo: str, branch: str) -> PromptCo
     )
 
 
-@router.put("/{owner}/{repo}/{branch}/prompt-config", response_model=PromptConfigResponse)
+@router.put(
+    "/{owner}/{repo}/{branch}/prompt-config",
+    response_model=PromptConfigResponse,
+    dependencies=[Depends(require_repo_key)],
+)
 async def put_repo_prompt_config(
     owner: str, repo: str, branch: str, body: PromptConfigUpdate
 ) -> PromptConfigResponse:

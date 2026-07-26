@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import JSZip from 'jszip'
-import { listDocs, getDoc } from './api'
+import { listDocs, getDoc, getRepoApiKey, setRepoApiKey } from './api'
 import DocTree from './components/DocTree.vue'
 import DocViewer from './components/DocViewer.vue'
 import PromptSettingsModal from './components/PromptSettingsModal.vue'
@@ -9,6 +9,7 @@ import PromptSettingsModal from './components/PromptSettingsModal.vue'
 const owner = ref('')
 const repo = ref('')
 const branch = ref('main')
+const apiKey = ref('')
 
 const documents = ref([])
 const activeDirectory = ref(null)
@@ -21,6 +22,7 @@ const downloadingAll = ref(false)
 async function loadDocs() {
   if (!owner.value || !repo.value || !branch.value) return
 
+  setRepoApiKey(owner.value, repo.value, apiKey.value)
   loading.value = true
   error.value = null
   activeDirectory.value = null
@@ -50,6 +52,12 @@ async function selectDirectory(directory) {
 
 watch(branch, () => {
   if (owner.value && repo.value) loadDocs()
+})
+
+watch([owner, repo], ([newOwner, newRepo]) => {
+  if (newOwner && newRepo) {
+    apiKey.value = getRepoApiKey(newOwner, newRepo)
+  }
 })
 
 async function downloadAllDocs() {
@@ -97,6 +105,13 @@ async function downloadAllDocs() {
             <input v-model.trim="repo" class="form-control font-monospace" placeholder="repo" required />
             <span class="input-group-text">@</span>
             <input v-model.trim="branch" class="form-control font-monospace" placeholder="branch" required />
+            <input
+              v-model.trim="apiKey"
+              type="password"
+              class="form-control font-monospace"
+              placeholder="API 키"
+              style="max-width: 10rem"
+            />
           </div>
           <button type="submit" class="btn btn-primary btn-sm">불러오기</button>
         </form>

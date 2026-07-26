@@ -5,8 +5,30 @@ const BASE_URL = '/api'
 // 접혀버린다. 백엔드(app/api.py)와 합의한 슬러그로 대신 보낸다.
 const ROOT_DIRECTORY_SLUG = '_root'
 
-async function request(path) {
-  const response = await fetch(`${BASE_URL}${path}`)
+function apiKeyStorageKey(owner, repo) {
+  return `md-auto:api-key:${owner}/${repo}`
+}
+
+export function getRepoApiKey(owner, repo) {
+  return localStorage.getItem(apiKeyStorageKey(owner, repo)) ?? ''
+}
+
+export function setRepoApiKey(owner, repo, apiKey) {
+  const storageKey = apiKeyStorageKey(owner, repo)
+  if (apiKey) {
+    localStorage.setItem(storageKey, apiKey)
+  } else {
+    localStorage.removeItem(storageKey)
+  }
+}
+
+function authHeaders(owner, repo) {
+  const apiKey = getRepoApiKey(owner, repo)
+  return apiKey ? { 'X-Repo-Api-Key': apiKey } : {}
+}
+
+async function request(path, { owner, repo } = {}) {
+  const response = await fetch(`${BASE_URL}${path}`, { headers: authHeaders(owner, repo) })
   if (!response.ok) {
     if (response.status === 404) {
       return null
@@ -17,7 +39,7 @@ async function request(path) {
 }
 
 export function listDocs(owner, repo, branch) {
-  return request(`/${owner}/${repo}/${branch}/docs`)
+  return request(`/${owner}/${repo}/${branch}/docs`, { owner, repo })
 }
 
 export function getDoc(owner, repo, branch, directory) {
@@ -25,7 +47,7 @@ export function getDoc(owner, repo, branch, directory) {
   // "app/clients" 처럼 슬래시를 포함할 수 있으므로 세그먼트별로 인코딩한다
   // (백엔드가 {directory:path} 컨버터로 슬래시를 그대로 기대함).
   const encodedDirectory = urlDirectory.split('/').map(encodeURIComponent).join('/')
-  return request(`/${owner}/${repo}/${branch}/docs/${encodedDirectory}`)
+  return request(`/${owner}/${repo}/${branch}/docs/${encodedDirectory}`, { owner, repo })
 }
 
 export function listPromptPresets() {
@@ -33,13 +55,13 @@ export function listPromptPresets() {
 }
 
 export function getPromptConfig(owner, repo, branch) {
-  return request(`/${owner}/${repo}/${branch}/prompt-config`)
+  return request(`/${owner}/${repo}/${branch}/prompt-config`, { owner, repo })
 }
 
 export async function savePromptConfig(owner, repo, branch, { preset_id, custom_instructions }) {
   const response = await fetch(`${BASE_URL}/${owner}/${repo}/${branch}/prompt-config`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(owner, repo) },
     body: JSON.stringify({ preset_id, custom_instructions }),
   })
   if (!response.ok) {

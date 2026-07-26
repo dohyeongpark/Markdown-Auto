@@ -41,7 +41,8 @@ app/
 ├── docs_store.py          # SQLite, 생성된 문서 본문 저장/조회 (repo/branch/directory 단위)
 ├── prompts.py              # 프롬프트 템플릿 렌더링 + 프리셋 레지스트리(PRESETS) + style_instructions 결합
 ├── prompt_store.py          # SQLite, repo/branch별 커스텀 프롬프트 설정(preset_id/custom_instructions)
-├── api.py                 # 프런트엔드용 문서 목록/조회 + 프롬프트 설정 REST API
+├── auth_store.py            # SQLite, repo별 API 키 해시 저장/검증 (평문 키는 저장하지 않음)
+├── api.py                 # 프런트엔드용 문서 목록/조회 + 프롬프트 설정 REST API (repo API 키로 보호)
 ├── state.py                # SQLite, 브랜치별 마지막 처리 커밋 SHA
 └── clients/
     ├── github.py            # 소스 파일 read-only fetch (커밋/PR 기능 없음)
@@ -145,6 +146,9 @@ npm run build
 - `GITHUB_BOT_TOKEN` — read-only 권한이면 충분하다 (더 이상 커밋하지 않음)
 - `LLM_PROVIDER` (`gemini` | `claude` | `openai`)
 - `LLM_API_KEY`
+- `ADMIN_API_KEY` — repo별 API 키(`app/auth_store.py`) 발급/재발급 엔드포인트
+  (`POST /api/{owner}/{repo}/api-key`, 헤더 `X-Admin-Api-Key`) 전용 관리자 시크릿.
+  repo API 키 자체가 아니라 "그 키를 새로 찍어내는" 권한이므로 각별히 보호할 것.
 
 ## 하지 말아야 할 것
 
