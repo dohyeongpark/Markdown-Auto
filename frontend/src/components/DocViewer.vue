@@ -9,6 +9,7 @@ import css from 'highlight.js/lib/languages/css'
 import dockerfile from 'highlight.js/lib/languages/dockerfile'
 import javascript from 'highlight.js/lib/languages/javascript'
 import json from 'highlight.js/lib/languages/json'
+import plaintext from 'highlight.js/lib/languages/plaintext'
 import python from 'highlight.js/lib/languages/python'
 import sql from 'highlight.js/lib/languages/sql'
 import typescript from 'highlight.js/lib/languages/typescript'
@@ -22,6 +23,7 @@ hljs.registerLanguage('css', css)
 hljs.registerLanguage('dockerfile', dockerfile)
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('json', json)
+hljs.registerLanguage('plaintext', plaintext)
 hljs.registerLanguage('python', python)
 hljs.registerLanguage('sql', sql)
 hljs.registerLanguage('typescript', typescript)
@@ -50,9 +52,23 @@ const props = defineProps({
 // LLM이 생성한 content에는 소스 코드에서 유입된 <script> 등이 섞일 수 있으므로
 // v-html로 삽입하기 전에 반드시 sanitize한다. highlight.js가 넣는 span class는
 // DOMPurify 기본 설정에서 그대로 유지된다.
-const renderedHtml = computed(() =>
-  props.document ? DOMPurify.sanitize(marked.parse(props.document.content)) : '',
-)
+//
+// marked.parse()가 예기치 않게 실패하면(예: 등록되지 않은 코드 펜스 언어) 뷰어
+// 전체가 아무것도 안 보이는 상태로 조용히 깨지므로, 실패 시 최소한 원본 텍스트라도
+// 보여준다.
+const renderedHtml = computed(() => {
+  if (!props.document) return ''
+
+  try {
+    return DOMPurify.sanitize(marked.parse(props.document.content))
+  } catch (e) {
+    console.error('마크다운 렌더링 실패:', e)
+    // content를 텍스트 노드로만 넣어 <, > 등이 태그로 오인되지 않게 한다.
+    const pre = window.document.createElement('pre')
+    pre.textContent = props.document.content
+    return DOMPurify.sanitize(pre.outerHTML)
+  }
+})
 </script>
 
 <template>
