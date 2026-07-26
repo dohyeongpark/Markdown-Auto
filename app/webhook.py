@@ -34,18 +34,27 @@ async def receive_github_push(
     request: Request,
     background_tasks: BackgroundTasks,
     x_hub_signature_256: str | None = Header(default=None),
+    x_github_event: str | None = Header(default=None),
 ) -> Response:
     """push 이벤트를 받아 즉시 202를 반환하고, 실제 처리는 BackgroundTask로 위임한다.
 
     LLM 호출을 절대 여기서 동기적으로 기다리지 않는다. 생성된 문서는 GitHub에
     다시 커밋하지 않고 docs_store에만 저장하므로, 봇 스스로 push를 유발할 일이
     없어 [skip-docs] 같은 자기 트리거 방지 로직이 필요 없다.
+
+    GitHub는 웹훅 등록 시 ping 이벤트를 먼저 보내고, 설정에 따라 push 외의
+    이벤트도 보낼 수 있다. push가 아닌 이벤트는 페이로드 구조가 달라 그대로
+    파싱하면 에러가 나므로, 서명 검증 후 이벤트 타입을 확인해 push만 처리한다.
     """
     body = await request.body()
     settings = get_settings()
 
     if not verify_signature(body, x_hub_signature_256, settings.github_webhook_secret):
         raise HTTPException(status_code=401, detail="invalid signature")
+
+    if x_github_event != "push":
+        logger.info("push가 아닌 이벤트 무시: %s", x_github_event)
+        return Response(status_code=202)
 
     payload = json.loads(body)
     background_tasks.add_task(process_push_event, payload)
