@@ -5,7 +5,7 @@ import httpx
 from app.config import get_settings
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-flash-latest"
 
 
 class GeminiClient:
