@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
+import JSZip from 'jszip'
 import { listDocs, getDoc } from './api'
 import DocTree from './components/DocTree.vue'
 import DocViewer from './components/DocViewer.vue'
@@ -15,6 +16,7 @@ const activeDocument = ref(null)
 const loading = ref(false)
 const error = ref(null)
 const showPromptSettings = ref(false)
+const downloadingAll = ref(false)
 
 async function loadDocs() {
   if (!owner.value || !repo.value || !branch.value) return
@@ -49,6 +51,38 @@ async function selectDirectory(directory) {
 watch(branch, () => {
   if (owner.value && repo.value) loadDocs()
 })
+
+async function downloadAllDocs() {
+  if (documents.value.length === 0) return
+
+  downloadingAll.value = true
+  error.value = null
+
+  try {
+    const zip = new JSZip()
+    const fullDocs = await Promise.all(
+      documents.value.map((doc) => getDoc(owner.value, repo.value, branch.value, doc.directory)),
+    )
+
+    for (const doc of fullDocs) {
+      if (!doc) continue
+      const dirPart = doc.directory === '.' ? '' : `${doc.directory}/`
+      zip.file(`${dirPart}README.md`, doc.content)
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${owner.value}-${repo.value}-${branch.value}-docs.zip`
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    downloadingAll.value = false
+  }
+}
 </script>
 
 <template>
@@ -67,14 +101,24 @@ watch(branch, () => {
           <button type="submit" class="btn btn-primary btn-sm">불러오기</button>
         </form>
       </div>
-      <button
-        type="button"
-        class="btn btn-outline-secondary btn-sm"
-        :disabled="!owner || !repo || !branch"
-        @click="showPromptSettings = true"
-      >
-        프롬프트 설정
-      </button>
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          :disabled="documents.length === 0 || downloadingAll"
+          @click="downloadAllDocs"
+        >
+          {{ downloadingAll ? '압축 중...' : '전체 다운로드' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          :disabled="!owner || !repo || !branch"
+          @click="showPromptSettings = true"
+        >
+          프롬프트 설정
+        </button>
+      </div>
     </header>
 
     <p v-if="error" class="text-danger mt-3 mb-0">{{ error }}</p>
