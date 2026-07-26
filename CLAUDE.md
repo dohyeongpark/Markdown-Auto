@@ -11,10 +11,13 @@ GitHub/GitLab push 이벤트를 감지해, 최신 커밋 기준으로 **변경�
 FastAPI 백엔드가 이를 REST API로 제공하고 Vue.js SPA가 프런트엔드로 노출한다.
 (기존에 검토했던 "봇 계정으로 GitHub에 커밋" 방식은 폐기됨 — 아래 아키텍처 참고.)
 
-- 상태: 백엔드(app/) 스캐폴딩 완료, 프런트엔드(frontend/) 스캐폴딩 완료. 실제 GCP 인프라는 아직 미생성.
+- 상태: 백엔드/프런트엔드 스캐폴딩 완료, GCP e2-micro에 배포 완료, 웹훅 파이프라인 end-to-end 테스트 성공
+  (VM 내부에서 만든 가짜 push payload 기준 — 실제 GitHub push로는 아직 미검증).
 - 목표 단계: Phase 1 — 프롬프트 PoC
-- 배포 대상: GCP e2-micro (무료 티어), 서버 1대에 백엔드+DB+프런트엔드 정적 파일을 모두 올림 (별도 서비스 분리 지양)
-- 관련 프로젝트 아님: SSAFY 관광앱, BTC-ETH 트레이딩 시스템과는 무관한 별도 저장소
+- 배포 대상: GCP e2-micro (무료 티어), 서버 1대에 백엔드+DB+프런트엔드 정적 파일을 모두 올림 (별도 서비스 분리 지양).
+  실제 배포 정보는 아래 "배포 인프라" 절 참고.
+- 관련 프로젝트 아님: SSAFY 관광앱, BTC-ETH 트레이딩 시스템(GCP 프로젝트 `parkdh0121`의 `statarb-vm`으로 추정)과는
+  무관한 별도 저장소. 이 프로젝트는 별도 GCP 프로젝트·별도 결제 계정을 쓴다 (무료 티어 충돌 방지).
 
 ## 아키텍처 요약
 
@@ -45,6 +48,34 @@ prompts/                 # LLM 프롬프트 템플릿 (.txt), 코드에 하드�
 frontend/                # Vue 3 + Vite SPA. 빌드 산출물을 app/main.py가 정적 서빙
 tests/
 ```
+
+## 배포 인프라
+
+- GCP 프로젝트: `markdown-auto` (결제 계정 `0166C3-81EF15-95E5AE`, statarb-vm과 별개 — 무료 티어 안전).
+  같은 결제 계정에 `gen-lang-client-0035780710`(Gemini API 키 발급용으로 추정) 프로젝트도 걸려 있으나 미사용.
+- VM: `markdown-auto-vm`, zone `us-central1-a` (무료 티어 대상 리전), e2-micro, pd-standard 30GB, Debian 12
+- 방화벽: `allow-app-8000` — tcp:8000 전체 공개 (0.0.0.0/0). 아직 HTTPS/도메인 미설정, 평문 HTTP만 사용
+- 배포 경로: VM의 `~/Markdown-Auto` (git clone), `~/Markdown-Auto/.venv`
+- 서비스: systemd 유닛 `markdown-auto.service` (`uvicorn app.main:app --host 0.0.0.0 --port 8000`,
+  `EnvironmentFile=~/Markdown-Auto/.env`), 부팅 시 자동 시작
+- 배포 절차:
+  1. 로컬에서 커밋·푸시
+  2. `gcloud compute ssh markdown-auto-vm --project=markdown-auto --zone=us-central1-a --command="cd ~/Markdown-Auto && git pull && .venv/bin/pip install -r requirements.txt && sudo systemctl restart markdown-auto.service"`
+  3. 프런트엔드 변경 시: 로컬에서 `npm run build` 후 `gcloud compute scp --recurse frontend/dist markdown-auto-vm:~/Markdown-Auto/frontend/dist --project=markdown-auto --zone=us-central1-a`
+  4. `.env` 값 변경 시: 로컬 `.env`를 절대 채팅/로그에 붙여넣지 말고 `gcloud compute scp`로 직접 VM에 복사
+
+## 트러블슈팅 / 배포 중 겪은 문제 (재발 방지)
+
+- **시크릿을 URL 쿼리 파라미터로 보내지 말 것.** httpx는 요청 실패 시 요청 URL 전체를 예외 메시지에
+  포함시키는데, 이를 그대로 로깅하면 시크릿이 서버 로그(journalctl 등)에 평문으로 남는다.
+  실제로 Gemini API 키를 `?key=`로 보내다 이 사고가 발생했음 — 반드시 헤더로 보낼 것
+  (`app/clients/llm/gemini.py`가 `x-goog-api-key` 헤더 사용 예시). 새 벤더 클라이언트 추가 시 동일하게 주의.
+- **Gemini 모델은 특정 버전에 고정하지 말 것.** `gemini-2.0-flash`처럼 dated named model은 ListModels
+  응답엔 남아있어도 generateContent 호출이 예고 없이 404로 retire될 수 있다. `gemini-flash-latest`처럼
+  "현재 권장 모델"을 가리키는 alias를 기본값으로 쓴다.
+- **한국(KRW) 결제 계정의 Gemini API는 quota가 아니라 "선불 크레딧" 방식이다.** 429가 떠도 요청 빈도
+  제한이 아니라 계정 잔액 고갈일 수 있음 — 에러 메시지에 "prepayment credits are depleted"가 있으면
+  AI Studio(ai.studio/projects)에서 잔액을 확인할 것.
 
 ## 개발 명령어
 
@@ -111,6 +142,7 @@ npm run build
 - LLM 프롬프트를 코드 문자열로 하드코딩 (항상 `prompts/*.txt`에서 로드)
 - 변경되지 않은 디렉토리까지 순회하며 md 재생성
 - 생성된 문서를 GitHub 저장소에 다시 커밋하기 (과거 설계, 폐기됨 — `docs_store.py`에 저장할 것)
+- API 키/시크릿을 URL 쿼리 파라미터로 전달하기 (에러 로그에 평문 노출 위험 — 헤더 사용, 트러블슈팅 절 참고)
 - 이 CLAUDE.md에 코드 블록을 통째로 붙여넣어 문서화 대체하기 (파일 경로로 참조할 것)
 
 ## Claude에게 주는 참고
