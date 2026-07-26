@@ -68,7 +68,9 @@ tests/
 - 배포 절차:
   1. 로컬에서 커밋·푸시
   2. `gcloud compute ssh markdown-auto-vm --project=markdown-auto --zone=us-central1-a --tunnel-through-iap --command="cd ~/Markdown-Auto && git pull && .venv/bin/pip install -r requirements.txt && sudo systemctl restart markdown-auto.service"`
-  3. 프런트엔드 변경 시: 로컬에서 `npm run build` 후 `gcloud compute scp --recurse frontend/dist markdown-auto-vm:~/Markdown-Auto/frontend/dist --project=markdown-auto --zone=us-central1-a`
+  3. 프런트엔드 변경 시: 로컬에서 `npm run build` 후 `gcloud compute scp --recurse frontend/dist markdown-auto-vm:~/Markdown-Auto/frontend/dist --project=markdown-auto --zone=us-central1-a --tunnel-through-iap`.
+     **주의:** VM에 `frontend/dist`가 이미 존재하면 scp가 그 안에 `dist/dist`로 중첩 복사해버려 옛날 빌드가 계속
+     서빙된다(2026-07-26 실제 발생) — 반드시 먼저 VM에서 `rm -rf ~/Markdown-Auto/frontend/dist` 한 뒤 scp할 것.
   4. `.env` 값 변경 시: 로컬 `.env`를 절대 채팅/로그에 붙여넣지 말고 `gcloud compute scp`로 직접 VM에 복사
 
 ## 트러블슈팅 / 배포 중 겪은 문제 (재발 방지)
