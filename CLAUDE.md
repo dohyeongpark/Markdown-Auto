@@ -58,13 +58,15 @@ tests/
 - GCP 프로젝트: `markdown-auto` (결제 계정 `0166C3-81EF15-95E5AE`, statarb-vm과 별개 — 무료 티어 안전).
   같은 결제 계정에 `gen-lang-client-0035780710`(Gemini API 키 발급용으로 추정) 프로젝트도 걸려 있으나 미사용.
 - VM: `markdown-auto-vm`, zone `us-central1-a` (무료 티어 대상 리전), e2-micro, pd-standard 30GB, Debian 12
-- 방화벽: `allow-app-8000` — tcp:8000 전체 공개 (0.0.0.0/0). 아직 HTTPS/도메인 미설정, 평문 HTTP만 사용
+- 방화벽: `allow-app-8000` — tcp:8000 전체 공개 (0.0.0.0/0). 아직 HTTPS/도메인 미설정, 평문 HTTP만 사용.
+  SSH(22)는 `allow-ssh-iap`로 IAP 전용(소스 `35.235.240.0/20`)만 허용 — `default-allow-ssh`/`default-allow-rdp`는
+  전체 공개라 삭제함(2026-07-26). 반드시 아래처럼 `--tunnel-through-iap`로 접속할 것, 포트 22를 다시 공개하지 말 것.
 - 배포 경로: VM의 `~/Markdown-Auto` (git clone), `~/Markdown-Auto/.venv`
 - 서비스: systemd 유닛 `markdown-auto.service` (`uvicorn app.main:app --host 0.0.0.0 --port 8000`,
   `EnvironmentFile=~/Markdown-Auto/.env`), 부팅 시 자동 시작
 - 배포 절차:
   1. 로컬에서 커밋·푸시
-  2. `gcloud compute ssh markdown-auto-vm --project=markdown-auto --zone=us-central1-a --command="cd ~/Markdown-Auto && git pull && .venv/bin/pip install -r requirements.txt && sudo systemctl restart markdown-auto.service"`
+  2. `gcloud compute ssh markdown-auto-vm --project=markdown-auto --zone=us-central1-a --tunnel-through-iap --command="cd ~/Markdown-Auto && git pull && .venv/bin/pip install -r requirements.txt && sudo systemctl restart markdown-auto.service"`
   3. 프런트엔드 변경 시: 로컬에서 `npm run build` 후 `gcloud compute scp --recurse frontend/dist markdown-auto-vm:~/Markdown-Auto/frontend/dist --project=markdown-auto --zone=us-central1-a`
   4. `.env` 값 변경 시: 로컬 `.env`를 절대 채팅/로그에 붙여넣지 말고 `gcloud compute scp`로 직접 VM에 복사
 
