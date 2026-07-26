@@ -19,12 +19,12 @@ const renderedHtml = computed(() =>
 
 <template>
   <div class="doc-viewer">
-    <p v-if="!document" class="doc-viewer__placeholder">왼쪽 목록에서 문서를 선택하세요.</p>
+    <p v-if="!document" class="doc-viewer__placeholder text-muted">왼쪽 목록에서 문서를 선택하세요.</p>
     <template v-else>
-      <div class="doc-viewer__meta">
-        <span class="doc-viewer__directory">{{ document.directory }}</span>
-        <span class="doc-viewer__sha">source: {{ document.source_sha.slice(0, 7) }}</span>
-        <span class="doc-viewer__updated-at">{{ document.updated_at }}</span>
+      <div class="doc-viewer__meta d-flex align-items-center gap-3 text-muted small font-monospace mb-3">
+        <span>{{ document.directory }}</span>
+        <span class="badge text-bg-secondary">{{ document.source_sha.slice(0, 7) }}</span>
+        <span>{{ document.updated_at }}</span>
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div class="doc-viewer__content" v-html="renderedHtml" />
@@ -33,17 +33,9 @@ const renderedHtml = computed(() =>
 </template>
 
 <style scoped>
-.doc-viewer__placeholder {
-  color: #888;
-}
-
-.doc-viewer__meta {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.85rem;
-  color: #888;
-  margin-bottom: 1rem;
-  font-family: monospace;
+.doc-viewer__content {
+  overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 .doc-viewer__content :deep(pre) {

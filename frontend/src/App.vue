@@ -13,6 +13,7 @@ const activeDirectory = ref(null)
 const activeDocument = ref(null)
 const loading = ref(false)
 const error = ref(null)
+const showPromptSettings = ref(false)
 
 async function loadDocs() {
   if (!owner.value || !repo.value || !branch.value) return
@@ -50,21 +51,33 @@ watch(branch, () => {
 </script>
 
 <template>
-  <div class="layout">
-    <header class="layout__header">
-      <h1>Markdown Auto</h1>
-      <form class="repo-form" @submit.prevent="loadDocs">
-        <input v-model.trim="owner" placeholder="owner" required />
-        <span>/</span>
-        <input v-model.trim="repo" placeholder="repo" required />
-        <span>@</span>
-        <input v-model.trim="branch" placeholder="branch" required />
-        <button type="submit">불러오기</button>
-      </form>
+  <div class="layout container-lg py-4">
+    <header class="layout__header d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 border-bottom">
+      <div>
+        <h1 class="h3 mb-2">Markdown Auto</h1>
+        <form class="d-flex align-items-center gap-2" @submit.prevent="loadDocs">
+          <div class="input-group input-group-sm" style="width: auto">
+            <input v-model.trim="owner" class="form-control font-monospace" placeholder="owner" required />
+            <span class="input-group-text">/</span>
+            <input v-model.trim="repo" class="form-control font-monospace" placeholder="repo" required />
+            <span class="input-group-text">@</span>
+            <input v-model.trim="branch" class="form-control font-monospace" placeholder="branch" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">불러오기</button>
+        </form>
+      </div>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        :disabled="!owner || !repo || !branch"
+        @click="showPromptSettings = true"
+      >
+        프롬프트 설정
+      </button>
     </header>
 
-    <p v-if="error" class="layout__error">{{ error }}</p>
-    <p v-else-if="loading" class="layout__loading">불러오는 중...</p>
+    <p v-if="error" class="text-danger mt-3 mb-0">{{ error }}</p>
+    <p v-else-if="loading" class="text-muted mt-3 mb-0">불러오는 중...</p>
 
     <main class="layout__body">
       <aside class="layout__sidebar">
@@ -78,41 +91,12 @@ watch(branch, () => {
 </template>
 
 <style scoped>
-.layout {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-
-.layout__header {
-  margin-bottom: 1.5rem;
-}
-
-.repo-form {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.75rem;
-}
-
-.repo-form input {
-  padding: 0.4rem 0.6rem;
-  font-family: monospace;
-}
-
-.layout__error {
-  color: #e5484d;
-}
-
-.layout__loading {
-  color: #888;
-}
-
 .layout__body {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 1.5rem;
   align-items: start;
+  margin-top: 1.5rem;
 }
 
 .layout__sidebar {
