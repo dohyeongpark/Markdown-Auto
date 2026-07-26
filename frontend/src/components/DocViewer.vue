@@ -69,6 +69,21 @@ const renderedHtml = computed(() => {
     return DOMPurify.sanitize(pre.outerHTML)
   }
 })
+
+function downloadDoc() {
+  if (!props.document) return
+
+  const safeName = props.document.directory === '.' ? 'root' : props.document.directory.replace(/\//g, '-')
+  const blob = new Blob([props.document.content], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+
+  const link = window.document.createElement('a')
+  link.href = url
+  link.download = `${safeName}.md`
+  link.click()
+
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
@@ -79,6 +94,9 @@ const renderedHtml = computed(() => {
         <span>{{ document.directory }}</span>
         <span class="badge text-bg-secondary">{{ document.source_sha.slice(0, 7) }}</span>
         <span>{{ document.updated_at }}</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" @click="downloadDoc">
+          다운로드
+        </button>
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div class="doc-viewer__content markdown-body" v-html="renderedHtml" />
