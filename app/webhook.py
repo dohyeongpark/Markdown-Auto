@@ -86,15 +86,22 @@ async def process_push_event(payload: dict) -> None:
     )
 
     for directory in changed_directories:
-        await generate_and_store_docs(
-            github_client=github_client,
-            llm_client=llm_client,
-            owner=owner,
-            repo=repo,
-            branch=branch,
-            directory=directory,
-            commit_sha=head_sha,
-            style_instructions=style_instructions,
-        )
+        try:
+            await generate_and_store_docs(
+                github_client=github_client,
+                llm_client=llm_client,
+                owner=owner,
+                repo=repo,
+                branch=branch,
+                directory=directory,
+                commit_sha=head_sha,
+                style_instructions=style_instructions,
+            )
+        except Exception:
+            # 디렉토리 하나의 실패가 같은 push의 나머지 디렉토리 처리를 막지 않도록 격리한다.
+            # (doc_writer.generate_and_store_docs가 이미 로깅 후 재발생시킨 예외를 여기서 받는다.)
+            logger.exception(
+                "디렉토리 처리 실패, 다음 디렉토리로 계속 진행: %s/%s (%s)", owner, repo, directory
+            )
 
     set_last_processed_sha(repo=f"{owner}/{repo}", branch=branch, sha=head_sha)

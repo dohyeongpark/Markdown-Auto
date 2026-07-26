@@ -33,6 +33,11 @@ async def generate_and_store_docs(
         existing = get_document(repo_full_name, branch, directory)
         source_files = await github_client.list_directory_files(owner, repo, directory, ref=branch)
 
+        if not source_files:
+            # 이미지/락파일 등 문서화에 의미 없는 파일만 있는 디렉토리 — LLM 호출 없이 건너뛴다.
+            logger.info("문서화할 소스 파일이 없어 건너뜀: %s/%s (%s)", repo_full_name, branch, directory)
+            return
+
         prompt = render_prompt(
             directory=directory,
             existing_readme=existing.content if existing else None,
