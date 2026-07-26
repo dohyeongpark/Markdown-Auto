@@ -32,6 +32,34 @@ def test_upsert_overwrites_existing_document(tmp_path: Path, monkeypatch):
     assert document.source_sha == "sha2"
 
 
+def test_delete_document_removes_it(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(docs_store, "DB_PATH", tmp_path / "docs.db")
+    docs_store.upsert_document("owner/repo", "main", "app", "content", "sha1")
+
+    deleted = docs_store.delete_document("owner/repo", "main", "app")
+
+    assert deleted is True
+    assert docs_store.get_document("owner/repo", "main", "app") is None
+
+
+def test_delete_document_returns_false_when_missing(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(docs_store, "DB_PATH", tmp_path / "docs.db")
+
+    assert docs_store.delete_document("owner/repo", "main", "app") is False
+
+
+def test_delete_document_only_removes_matching_repo_branch_directory(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(docs_store, "DB_PATH", tmp_path / "docs.db")
+    docs_store.upsert_document("owner/repo", "main", "app", "content-a", "sha1")
+    docs_store.upsert_document("owner/repo", "main", "prompts", "content-b", "sha1")
+    docs_store.upsert_document("owner/repo", "dev", "app", "content-c", "sha2")
+
+    docs_store.delete_document("owner/repo", "main", "app")
+
+    assert docs_store.get_document("owner/repo", "main", "prompts") is not None
+    assert docs_store.get_document("owner/repo", "dev", "app") is not None
+
+
 def test_list_documents_scoped_to_repo_and_branch(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(docs_store, "DB_PATH", tmp_path / "docs.db")
 

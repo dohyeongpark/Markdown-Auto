@@ -93,6 +93,36 @@ def test_get_doc_missing_returns_404(tmp_path: Path, monkeypatch):
     assert response.status_code == 404
 
 
+def test_delete_doc_removes_it(tmp_path: Path, monkeypatch):
+    _use_scratch_db(tmp_path, monkeypatch)
+    docs_store.upsert_document("owner/repo", "main", "app", "# App", "sha1")
+    headers = _auth_headers("owner/repo")
+
+    delete_response = client.delete("/api/owner/repo/main/docs/app", headers=headers)
+    assert delete_response.status_code == 204
+
+    get_response = client.get("/api/owner/repo/main/docs/app", headers=headers)
+    assert get_response.status_code == 404
+
+
+def test_delete_doc_missing_returns_404(tmp_path: Path, monkeypatch):
+    _use_scratch_db(tmp_path, monkeypatch)
+
+    response = client.delete("/api/owner/repo/main/docs/missing", headers=_auth_headers("owner/repo"))
+
+    assert response.status_code == 404
+
+
+def test_delete_doc_without_api_key_returns_401(tmp_path: Path, monkeypatch):
+    _use_scratch_db(tmp_path, monkeypatch)
+    docs_store.upsert_document("owner/repo", "main", "app", "# App", "sha1")
+
+    response = client.delete("/api/owner/repo/main/docs/app")
+
+    assert response.status_code == 401
+    assert docs_store.get_document("owner/repo", "main", "app") is not None
+
+
 def test_list_prompt_presets_returns_registry_ids():
     response = client.get("/api/prompt-presets")
 

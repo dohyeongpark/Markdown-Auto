@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import JSZip from 'jszip'
-import { listDocs, getDoc, getRepoApiKey, setRepoApiKey } from './api'
+import { listDocs, getDoc, deleteDoc, getRepoApiKey, setRepoApiKey } from './api'
 import DocTree from './components/DocTree.vue'
 import DocViewer from './components/DocViewer.vue'
 import PromptSettingsModal from './components/PromptSettingsModal.vue'
@@ -47,6 +47,21 @@ async function selectDirectory(directory) {
   } catch (e) {
     error.value = e.message
     activeDocument.value = null
+  }
+}
+
+async function deleteDocument(directory) {
+  error.value = null
+
+  try {
+    await deleteDoc(owner.value, repo.value, branch.value, directory)
+    documents.value = documents.value.filter((doc) => doc.directory !== directory)
+    if (activeDirectory.value === directory) {
+      activeDirectory.value = null
+      activeDocument.value = null
+    }
+  } catch (e) {
+    error.value = e.message
   }
 }
 
@@ -144,7 +159,7 @@ async function downloadAllDocs() {
         <DocTree :documents="documents" :active-directory="activeDirectory" @select="selectDirectory" />
       </aside>
       <section class="layout__content">
-        <DocViewer :document="activeDocument" />
+        <DocViewer :document="activeDocument" @delete="deleteDocument" />
       </section>
     </main>
 

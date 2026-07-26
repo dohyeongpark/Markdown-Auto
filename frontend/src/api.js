@@ -50,6 +50,18 @@ export function getDoc(owner, repo, branch, directory) {
   return request(`/${owner}/${repo}/${branch}/docs/${encodedDirectory}`, { owner, repo })
 }
 
+export async function deleteDoc(owner, repo, branch, directory) {
+  const urlDirectory = directory === '.' ? ROOT_DIRECTORY_SLUG : directory
+  const encodedDirectory = urlDirectory.split('/').map(encodeURIComponent).join('/')
+  const response = await fetch(`${BASE_URL}/${owner}/${repo}/${branch}/docs/${encodedDirectory}`, {
+    method: 'DELETE',
+    headers: authHeaders(owner, repo),
+  })
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} delete-doc`)
+  }
+}
+
 export function listPromptPresets() {
   return request('/prompt-presets')
 }

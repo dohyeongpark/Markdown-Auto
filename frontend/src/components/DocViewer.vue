@@ -49,6 +49,8 @@ const props = defineProps({
   },
 })
 
+const emit = defineEmits(['delete'])
+
 // LLM이 생성한 content에는 소스 코드에서 유입된 <script> 등이 섞일 수 있으므로
 // v-html로 삽입하기 전에 반드시 sanitize한다. highlight.js가 넣는 span class는
 // DOMPurify 기본 설정에서 그대로 유지된다.
@@ -84,6 +86,13 @@ function downloadDoc() {
 
   URL.revokeObjectURL(url)
 }
+
+function requestDelete() {
+  if (!props.document) return
+  if (!window.confirm(`"${props.document.directory}" 문서를 삭제할까요? 되돌릴 수 없습니다.`)) return
+
+  emit('delete', props.document.directory)
+}
 </script>
 
 <template>
@@ -97,6 +106,7 @@ function downloadDoc() {
         <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" @click="downloadDoc">
           다운로드
         </button>
+        <button type="button" class="btn btn-sm btn-outline-danger" @click="requestDelete">삭제</button>
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div class="doc-viewer__content markdown-body" v-html="renderedHtml" />

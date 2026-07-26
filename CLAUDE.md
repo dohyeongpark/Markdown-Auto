@@ -38,7 +38,7 @@ app/
 ├── diff_parser.py        # push payload → 변경 디렉토리 목록
 ├── llm_client.py          # LLM 추상화 인터페이스 (Provider 교체 가능해야 함)
 ├── doc_writer.py          # LLM 결과를 docs_store에 저장 (과거 git_committer.py 역할 대체)
-├── docs_store.py          # SQLite, 생성된 문서 본문 저장/조회 (repo/branch/directory 단위)
+├── docs_store.py          # SQLite, 생성된 문서 본문 저장/조회/삭제 (repo/branch/directory 단위)
 ├── prompts.py              # 프롬프트 템플릿 렌더링 + 프리셋 레지스트리(PRESETS) + style_instructions 결합
 ├── prompt_store.py          # SQLite, repo/branch별 커스텀 프롬프트 설정(preset_id/custom_instructions)
 ├── auth_store.py            # SQLite, repo별 API 키 해시 저장/검증 (평문 키는 저장하지 않음)

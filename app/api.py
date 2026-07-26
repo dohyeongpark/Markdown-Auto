@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.auth_store import issue_repo_key, verify_repo_key
 from app.config import get_settings
-from app.docs_store import get_document, list_documents
+from app.docs_store import delete_document, get_document, list_documents
 from app.prompt_store import get_prompt_config, upsert_prompt_config
 from app.prompts import PRESETS, get_preset
 
@@ -108,6 +108,17 @@ async def get_repo_doc(owner: str, repo: str, branch: str, directory: str) -> Do
         updated_at=document.updated_at,
         content=document.content,
     )
+
+
+@router.delete(
+    "/{owner}/{repo}/{branch}/docs/{directory:path}",
+    status_code=204,
+    dependencies=[Depends(require_repo_key)],
+)
+async def delete_repo_doc(owner: str, repo: str, branch: str, directory: str) -> None:
+    deleted = delete_document(repo=f"{owner}/{repo}", branch=branch, directory=_directory_from_url(directory))
+    if not deleted:
+        raise HTTPException(status_code=404, detail="document not found")
 
 
 @router.get("/prompt-presets", response_model=list[PromptPresetSummary])

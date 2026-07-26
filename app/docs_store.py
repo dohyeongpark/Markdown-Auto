@@ -65,6 +65,16 @@ def list_documents(repo: str, branch: str) -> list[Document]:
     return [Document(*row) for row in rows]
 
 
+def delete_document(repo: str, branch: str, directory: str) -> bool:
+    """삭제된 row가 있었으면 True, 애초에 없었으면 False를 반환한다."""
+    with _connect() as conn:
+        cursor = conn.execute(
+            "DELETE FROM documents WHERE repo = ? AND branch = ? AND directory = ?",
+            (repo, branch, directory),
+        )
+    return cursor.rowcount > 0
+
+
 def upsert_document(repo: str, branch: str, directory: str, content: str, source_sha: str) -> None:
     updated_at = datetime.now(UTC).isoformat()
     with _connect() as conn:
