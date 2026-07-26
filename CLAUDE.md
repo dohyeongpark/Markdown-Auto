@@ -39,13 +39,17 @@ app/
 ├── llm_client.py          # LLM 추상화 인터페이스 (Provider 교체 가능해야 함)
 ├── doc_writer.py          # LLM 결과를 docs_store에 저장 (과거 git_committer.py 역할 대체)
 ├── docs_store.py          # SQLite, 생성된 문서 본문 저장/조회 (repo/branch/directory 단위)
-├── api.py                 # 프런트엔드용 문서 목록/조회 REST API
+├── prompts.py              # 프롬프트 템플릿 렌더링 + 프리셋 레지스트리(PRESETS) + style_instructions 결합
+├── prompt_store.py          # SQLite, repo/branch별 커스텀 프롬프트 설정(preset_id/custom_instructions)
+├── api.py                 # 프런트엔드용 문서 목록/조회 + 프롬프트 설정 REST API
 ├── state.py                # SQLite, 브랜치별 마지막 처리 커밋 SHA
 └── clients/
     ├── github.py            # 소스 파일 read-only fetch (커밋/PR 기능 없음)
     └── llm/                 # gemini.py / claude.py / openai.py — 벤더별 실제 호출
 prompts/                 # LLM 프롬프트 템플릿 (.txt), 코드에 하드코딩 금지
-frontend/                # Vue 3 + Vite SPA. 빌드 산출물을 app/main.py가 정적 서빙
+├── generate_readme.txt / update_readme.txt  # 기본 생성/수정 템플릿
+└── presets/               # 프리셋별 "추가 지침" 조각 (전체 템플릿 대체 아님) — educational.txt, concise.txt
+frontend/                # Vue 3 + Vite SPA (Bootstrap 5 CSS만 사용, JS 번들은 미사용). 빌드 산출물을 app/main.py가 정적 서빙
 tests/
 ```
 
@@ -123,9 +127,13 @@ npm run build
 4. **기존 문서가 있는 디렉토리는 전체 재생성이 아니라 diff 기반 수정으로 프롬프트를 구성한다.**
    기존 문서는 GitHub가 아니라 `docs_store.py`에서 조회한다.
 5. **`state.py`는 브랜치별 마지막 처리 SHA만 저장한다.** 그 이상의 스키마 확장 금지(YAGNI).
-   생성된 문서 본문은 `docs_store.py`의 별도 스키마에 저장하며 서로 책임을 섞지 않는다.
+   생성된 문서 본문은 `docs_store.py`, 커스텀 프롬프트 설정은 `prompt_store.py`의 별도 스키마(별도 SQLite 파일)에
+   저장하며 서로 책임을 섞지 않는다.
 6. **`app/clients/github.py`는 read-only다.** 소스 파일 fetch 용도로만 쓰고 커밋/PR 생성 기능을 다시 추가하지 않는다.
 7. 새 기능 추가 전 `tests/`에 실패하는 테스트부터 작성 (TDD 지향, 강제는 아님).
+8. **프롬프트 프리셋(`prompts/presets/*.txt`)은 전체 템플릿을 대체하지 않고, `generate_readme.txt`/
+   `update_readme.txt` 렌더링 결과 뒤에 덧붙는 "추가 지침" 조각이다.** 프리셋 목록은 `app/prompts.py`의
+   `PRESETS` 하드코딩 리스트로 관리한다 (파일시스템 스캔 방식 금지 — 솔로 프로젝트 규모에 과함, YAGNI).
 
 ## 환경 변수
 
