@@ -83,6 +83,12 @@ tests/
 - **한국(KRW) 결제 계정의 Gemini API는 quota가 아니라 "선불 크레딧" 방식이다.** 429가 떠도 요청 빈도
   제한이 아니라 계정 잔액 고갈일 수 있음 — 에러 메시지에 "prepayment credits are depleted"가 있으면
   AI Studio(ai.studio/projects)에서 잔액을 확인할 것.
+- **`.env`에 `echo "KEY=..." >> .env`로 값을 추가하기 전, 마지막 줄에 개행이 있는지 먼저 확인할 것.**
+  마지막 줄 끝에 개행이 없으면 새 줄이 이전 변수 값 뒤에 그대로 이어붙어(`LLM_API_KEY=xxxADMIN_API_KEY=yyy`)
+  두 변수 모두 깨진다. systemd `EnvironmentFile`은 각 줄의 첫 `=`만 구분자로 보므로 오류 없이 조용히
+  잘못된 값으로 기동해버려 발견이 늦어짐(2026-07-26, `ADMIN_API_KEY` 추가 중 실제로 발생·복구).
+  `printf '\n%s\n' "KEY=..." >> .env` 처럼 앞에 개행을 보장하거나, 추가 후 `awk -F= '{print $1}' .env`로
+  줄 수/키 목록이 예상과 같은지 확인할 것.
 
 ## 개발 명령어
 
