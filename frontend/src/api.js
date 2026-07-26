@@ -27,3 +27,23 @@ export function getDoc(owner, repo, branch, directory) {
   const encodedDirectory = urlDirectory.split('/').map(encodeURIComponent).join('/')
   return request(`/${owner}/${repo}/${branch}/docs/${encodedDirectory}`)
 }
+
+export function listPromptPresets() {
+  return request('/prompt-presets')
+}
+
+export function getPromptConfig(owner, repo, branch) {
+  return request(`/${owner}/${repo}/${branch}/prompt-config`)
+}
+
+export async function savePromptConfig(owner, repo, branch, { preset_id, custom_instructions }) {
+  const response = await fetch(`${BASE_URL}/${owner}/${repo}/${branch}/prompt-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ preset_id, custom_instructions }),
+  })
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} prompt-config`)
+  }
+  return response.json()
+}

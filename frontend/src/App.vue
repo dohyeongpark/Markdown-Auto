@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { listDocs, getDoc } from './api'
 import DocList from './components/DocList.vue'
 import DocViewer from './components/DocViewer.vue'
+import PromptSettingsModal from './components/PromptSettingsModal.vue'
 
 const owner = ref('')
 const repo = ref('')
@@ -87,6 +88,8 @@ watch(branch, () => {
         <DocViewer :document="activeDocument" />
       </section>
     </main>
+
+    <PromptSettingsModal v-model:visible="showPromptSettings" :owner="owner" :repo="repo" :branch="branch" />
   </div>
 </template>
 
