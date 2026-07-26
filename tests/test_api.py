@@ -7,7 +7,7 @@ os.environ.setdefault("LLM_API_KEY", "test-key")
 
 from fastapi.testclient import TestClient
 
-from app import docs_store
+from app import docs_store, prompt_store
 from app.main import app
 
 client = TestClient(app)
@@ -15,6 +15,7 @@ client = TestClient(app)
 
 def _use_scratch_db(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(docs_store, "DB_PATH", tmp_path / "docs.db")
+    monkeypatch.setattr(prompt_store, "DB_PATH", tmp_path / "prompt_config.db")
 
 
 def test_list_docs_empty(tmp_path: Path, monkeypatch):
@@ -57,3 +58,48 @@ def test_get_doc_missing_returns_404(tmp_path: Path, monkeypatch):
     response = client.get("/api/owner/repo/main/docs/missing")
 
     assert response.status_code == 404
+
+
+def test_list_prompt_presets_returns_registry_ids():
+    response = client.get("/api/prompt-presets")
+
+    assert response.status_code == 200
+    ids = {preset["id"] for preset in response.json()}
+    assert {"default", "educational", "concise"} <= ids
+
+
+def test_get_prompt_config_defaults_to_null_fields_when_unset(tmp_path: Path, monkeypatch):
+    _use_scratch_db(tmp_path, monkeypatch)
+
+    response = client.get("/api/owner/repo/main/prompt-config")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"preset_id": None, "custom_instructions": None, "updated_at": None}
+
+
+def test_put_prompt_config_roundtrip(tmp_path: Path, monkeypatch):
+    _use_scratch_db(tmp_path, monkeypatch)
+
+    put_response = client.put(
+        "/api/owner/repo/main/prompt-config",
+        json={"preset_id": "educational", "custom_instructions": "짧게"},
+    )
+    assert put_response.status_code == 200
+
+    get_response = client.get("/api/owner/repo/main/prompt-config")
+    body = get_response.json()
+    assert body["preset_id"] == "educational"
+    assert body["custom_instructions"] == "짧게"
+    assert body["updated_at"] is not None
+
+
+def test_put_prompt_config_rejects_unknown_preset_id(tmp_path: Path, monkeypatch):
+    _use_scratch_db(tmp_path, monkeypatch)
+
+    response = client.put(
+        "/api/owner/repo/main/prompt-config",
+        json={"preset_id": "does-not-exist", "custom_instructions": None},
+    )
+
+    assert response.status_code == 422
