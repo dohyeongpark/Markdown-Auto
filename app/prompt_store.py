@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -31,6 +32,7 @@ class PromptConfig:
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.execute(_CREATE_TABLE)
+    os.chmod(DB_PATH, 0o600)
     return conn
 
 
