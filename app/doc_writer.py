@@ -19,6 +19,7 @@ async def generate_and_store_docs(
     branch: str,
     directory: str,
     commit_sha: str,
+    style_instructions: str | None = None,
 ) -> None:
     """디렉토리 하나에 대해 문서를 생성하고 docs_store(SQLite)에 저장한다.
 
@@ -36,6 +37,7 @@ async def generate_and_store_docs(
             directory=directory,
             existing_readme=existing.content if existing else None,
             source_files=source_files,
+            style_instructions=style_instructions,
         )
         generated_markdown = await llm_client.generate_docs(prompt)
 

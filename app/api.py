@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.docs_store import get_document, list_documents
+from app.prompt_store import get_prompt_config, upsert_prompt_config
+from app.prompts import PRESETS, get_preset
 
 router = APIRouter(prefix="/api")
 
@@ -28,6 +30,23 @@ class DocumentDetail(DocumentSummary):
     content: str
 
 
+class PromptPresetSummary(BaseModel):
+    id: str
+    label: str
+    description: str
+
+
+class PromptConfigResponse(BaseModel):
+    preset_id: str | None
+    custom_instructions: str | None
+    updated_at: str | None
+
+
+class PromptConfigUpdate(BaseModel):
+    preset_id: str | None = None
+    custom_instructions: str | None = None
+
+
 @router.get("/{owner}/{repo}/{branch}/docs", response_model=list[DocumentSummary])
 async def list_repo_docs(owner: str, repo: str, branch: str) -> list[DocumentSummary]:
     documents = list_documents(repo=f"{owner}/{repo}", branch=branch)
@@ -48,4 +67,48 @@ async def get_repo_doc(owner: str, repo: str, branch: str, directory: str) -> Do
         source_sha=document.source_sha,
         updated_at=document.updated_at,
         content=document.content,
+    )
+
+
+@router.get("/prompt-presets", response_model=list[PromptPresetSummary])
+async def list_prompt_presets() -> list[PromptPresetSummary]:
+    return [
+        PromptPresetSummary(id=preset.id, label=preset.label, description=preset.description)
+        for preset in PRESETS
+    ]
+
+
+@router.get("/{owner}/{repo}/{branch}/prompt-config", response_model=PromptConfigResponse)
+async def get_repo_prompt_config(owner: str, repo: str, branch: str) -> PromptConfigResponse:
+    config = get_prompt_config(repo=f"{owner}/{repo}", branch=branch)
+    if config is None:
+        return PromptConfigResponse(preset_id=None, custom_instructions=None, updated_at=None)
+
+    return PromptConfigResponse(
+        preset_id=config.preset_id,
+        custom_instructions=config.custom_instructions,
+        updated_at=config.updated_at,
+    )
+
+
+@router.put("/{owner}/{repo}/{branch}/prompt-config", response_model=PromptConfigResponse)
+async def put_repo_prompt_config(
+    owner: str, repo: str, branch: str, body: PromptConfigUpdate
+) -> PromptConfigResponse:
+    if body.preset_id is not None and get_preset(body.preset_id) is None:
+        raise HTTPException(status_code=422, detail=f"unknown preset_id: {body.preset_id}")
+
+    upsert_prompt_config(
+        repo=f"{owner}/{repo}",
+        branch=branch,
+        preset_id=body.preset_id,
+        custom_instructions=body.custom_instructions,
+    )
+
+    config = get_prompt_config(repo=f"{owner}/{repo}", branch=branch)
+    assert config is not None
+    return PromptConfigResponse(
+        preset_id=config.preset_id,
+        custom_instructions=config.custom_instructions,
+        updated_at=config.updated_at,
     )

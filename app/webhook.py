@@ -12,6 +12,8 @@ from app.config import get_settings
 from app.diff_parser import get_changed_directories
 from app.doc_writer import generate_and_store_docs
 from app.llm_client import get_llm_client
+from app.prompt_store import get_prompt_config
+from app.prompts import resolve_style_instructions
 from app.state import set_last_processed_sha
 
 logger = logging.getLogger(__name__)
@@ -76,6 +78,13 @@ async def process_push_event(payload: dict) -> None:
     github_client = GitHubClient(token=settings.github_bot_token)
     llm_client = get_llm_client()
 
+    repo_full_name = f"{owner}/{repo}"
+    prompt_config = get_prompt_config(repo=repo_full_name, branch=branch)
+    style_instructions = resolve_style_instructions(
+        preset_id=prompt_config.preset_id if prompt_config else None,
+        custom_instructions=prompt_config.custom_instructions if prompt_config else None,
+    )
+
     for directory in changed_directories:
         await generate_and_store_docs(
             github_client=github_client,
@@ -85,6 +94,7 @@ async def process_push_event(payload: dict) -> None:
             branch=branch,
             directory=directory,
             commit_sha=head_sha,
+            style_instructions=style_instructions,
         )
 
     set_last_processed_sha(repo=f"{owner}/{repo}", branch=branch, sha=head_sha)
