@@ -5,6 +5,7 @@ venv/
 .env
 state.db
 docs.db
+prompt_config.db
 .ruff_cache/
 .pytest_cache/
 
